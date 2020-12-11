@@ -129,12 +129,12 @@ def addDevice():
 @app.route('/removeDevice', methods=['GET','POST'])
 def removeDevice():
     stateRemove=""
-    iddevice = request.args.get('id')
+    idDevice = request.args.get('id')
     conn = connDB()
     if conn is True:
         try:
            req = "DELETE FROM devices WHERE id = '{}'"
-           cur.execute(req.format(iddevice))
+           cur.execute(req.format(idDevice))
            stateRemove="l'équipement a bien été supprimé"
         except:
            stateRemove="Erreur lors de la suppression de l'équipement"
@@ -142,6 +142,28 @@ def removeDevice():
         stateRemove="Impossible de se connecter à la base de données"
     
     return stateRemove
+    
+
+
+@app.route('/getDeviceById',methods=['GET','POST'])
+def getDeviceById():
+    conn = connDB()
+    idDevice = request.args.get('id')
+    if conn is True:
+        try:
+            req="SELECT * from devices WHERE id = {}"
+            cur.execute (req.format(idDevice))
+            row_headers=[x[0] for x in cur.description]
+            rv = cur.fetchall()
+            json_data=[]
+            for result in rv:
+                json_data.append(dict(zip(row_headers,result)))
+                
+            return json.dumps(json_data,indent=4, sort_keys=True, default=str)
+        except:                        
+ 
+            return "Erreur lors de la récupération des données de l'équipement"        
+            
         
                   
 
