@@ -21,6 +21,34 @@ config = {
 	'database': 'ELECTINEOS'
 }
 
+def connDB():
+    global cur
+    try:
+        conn = mariadb.connect(**config)
+        cur = conn.cursor()
+        return True
+    except mariadb.Error as e:
+        stateConn = "Error: {e}"
+        return False
+        
+
+def connSmart(host):
+    global dev
+    global plug
+    try:
+       dev = SmartDevice(host)
+       asyncio.run(dev.update())
+       
+       plug = SmartPlug(host)
+       asyncio.run(plug.update())
+       print('okkkkk')
+       return True
+    except:
+       print('kooooo')
+       return False
+
+    
+
 
 
 @app.route('/off', methods=['GET'])
@@ -62,27 +90,27 @@ def getAlias():
 
 
 
-@app.route('/data', methods=['GET'])
+@app.route('/data', methods=['GET','POST'])
 def data():
-    stateConn="Connexion Ok"
-    try:
-        conn = mariadb.connect(**config)
-    except mariadb.Error as e:
-        stateConn = "Error: {e}"
-        sys.exit(1)
-    
-    dev = SmartDevice ('192.168.1.3')
-    asyncio.run(dev.update())
-    emeter_status = dev.emeter_realtime
-    
-    plug = SmartPlug('192.168.1.3')
-    asyncio.run(plug.update())
-    
-    cur = conn.cursor()
-    rqt_insertDevice = "INSERT INTO ELECTINEOS.device (alias,model,host,hardware,mac,led_state,led_state_since,emeter_current,emeter_voltage,emeter_power,emeter_total_concumption,emeter_today,emeter_month) VALUES ('{}','{}','{}','{}','{}','{}',FROM_UNIXTIME(UNIX_TIMESTAMP('{}')),'{}','{}','{}','{}','{}','{}')"
-    cur.execute(rqt_insertDevice.format(dev.alias,dev.model,dev.host,dev.hw_info['hw_ver'],dev.mac,plug.led,plug.on_since,emeter_status["current"],emeter_status["voltage"],emeter_status["power"],emeter_status["total"],dev.emeter_today,dev.emeter_this_month))
-        
-    return stateConn
+    stateInsert=""
+    host = request.args.get('host')
+    conn = connDB()
+    print(cur)
+    if conn is True:
+       if connSmart(host) is True:
+           emeter_status = dev.emeter_realtime
+           if (plug.is_off):
+              plugState = 'on'
+           elif(plug.is_on):
+              plugState = 'off'
+           rqt_insertDevice = "INSERT INTO ELECTINEOS.devices (alias,model,host,hardware,mac,led_state,led_state_since,plug,statut) VALUES ('{}','{}','{}','{}','{}','{}',FROM_UNIXTIME(UNIX_TIMESTAMP('{}')),'{}','{}')"
+                  
+           cur.execute(rqt_insertDevice.format(dev.alias,dev.model,dev.host,dev.hw_info['hw_ver'],dev.mac,plug.led,plug.on_since,plugState,'Plug disponible'))
+           stateInsert = "L'insertion du device a été effectuée avec succès !"
+       else:
+           stateInsert ="Erreur de connexion au Smart"
+
+    return stateInsert
 
 
 
@@ -98,7 +126,7 @@ def getDevice():
         sys.exit(1)
     
     cur = conn.cursor()
-    req = "SELECT alias,model,host,hardware,mac,led_state,emeter_current,emeter_voltage,emeter_power,emeter_total_concumption,emeter_today,emeter_month FROM device"
+    req = "SELECT alias,model,host,hardware,mac,led_state,emeter_current,emeter_voltage,emeter_power,emeter_total_concumption,emeter_today,emeter_month FROM devices"
     cur.execute(req.format())
     row_headers=[x[0] for x in cur.description]
     rv = cur.fetchall()
