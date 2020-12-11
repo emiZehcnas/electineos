@@ -125,6 +125,29 @@ def addDevice():
 
 
 
+
+@app.route('/removeDevice', methods=['GET','POST'])
+def removeDevice():
+    stateRemove=""
+    iddevice = request.args.get('id')
+    conn = connDB()
+    if conn is True:
+        try:
+           req = "DELETE FROM devices WHERE id = '{}'"
+           cur.execute(req.format(iddevice))
+           stateRemove="l'équipement a bien été supprimé"
+        except:
+           stateRemove="Erreur lors de la suppression de l'équipement"
+    else:
+        stateRemove="Impossible de se connecter à la base de données"
+    
+    return stateRemove
+        
+                  
+
+    
+
+
 @app.route('/device', methods=['GET'])
 def getDevice():
     stateConn="Connexion Ok"
@@ -137,7 +160,7 @@ def getDevice():
         sys.exit(1)
     
     cur = conn.cursor()
-    req = "SELECT alias,model,host,hardware,mac,led_state,plug,statut FROM devices"
+    req = "SELECT id,alias,model,host,hardware,mac,led_state,plug,statut FROM devices"
     cur.execute(req.format())
     row_headers=[x[0] for x in cur.description]
     rv = cur.fetchall()
