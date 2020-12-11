@@ -90,8 +90,8 @@ def getAlias():
 
 
 
-@app.route('/data', methods=['GET','POST'])
-def data():
+@app.route('/addDevice', methods=['GET','POST'])
+def addDevice():
     stateInsert=""
     host = request.args.get('host')
     conn = connDB()
@@ -100,9 +100,9 @@ def data():
        if connSmart(host) is True:
            emeter_status = dev.emeter_realtime
            if (plug.is_off):
-              plugState = 'on'
-           elif(plug.is_on):
               plugState = 'off'
+           elif(plug.is_on):
+              plugState = 'on'
            rqt_insertDevice = "INSERT INTO ELECTINEOS.devices (alias,model,host,hardware,mac,led_state,led_state_since,plug,statut) VALUES ('{}','{}','{}','{}','{}','{}',FROM_UNIXTIME(UNIX_TIMESTAMP('{}')),'{}','{}')"
                   
            cur.execute(rqt_insertDevice.format(dev.alias,dev.model,dev.host,dev.hw_info['hw_ver'],dev.mac,plug.led,plug.on_since,plugState,'Plug disponible'))
@@ -126,7 +126,7 @@ def getDevice():
         sys.exit(1)
     
     cur = conn.cursor()
-    req = "SELECT alias,model,host,hardware,mac,led_state,emeter_current,emeter_voltage,emeter_power,emeter_total_concumption,emeter_today,emeter_month FROM devices"
+    req = "SELECT alias,model,host,hardware,mac,led_state,plug,statut FROM devices"
     cur.execute(req.format())
     row_headers=[x[0] for x in cur.description]
     rv = cur.fetchall()
