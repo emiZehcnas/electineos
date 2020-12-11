@@ -92,23 +92,34 @@ def getAlias():
 
 @app.route('/addDevice', methods=['GET','POST'])
 def addDevice():
+    #Initialization of variables
     stateInsert=""
     host = request.args.get('host')
     conn = connDB()
     print(cur)
+    #Connection Test
     if conn is True:
+       #Connection to SmartDevice and SmartPlug
        if connSmart(host) is True:
            emeter_status = dev.emeter_realtime
+           #Get the state of plug : On/Off
            if (plug.is_off):
               plugState = 'off'
            elif(plug.is_on):
               plugState = 'on'
-           rqt_insertDevice = "INSERT INTO ELECTINEOS.devices (alias,model,host,hardware,mac,led_state,led_state_since,plug,statut) VALUES ('{}','{}','{}','{}','{}','{}',FROM_UNIXTIME(UNIX_TIMESTAMP('{}')),'{}','{}')"
+           
+           #Check if the host already exist in database
+           cur.execute("SELECT host FROM devices WHERE host = '{}'".format(host)) 
+           res = cur.fetchone() 
+           if str(res) != "None": 
+              stateInsert = "L'équipement existe déjà"
+           else:
+              rqt_insertDevice = "INSERT INTO ELECTINEOS.devices (alias,model,host,hardware,mac,led_state,led_state_since,plug,statut) VALUES ('{}','{}','{}','{}','{}','{}',FROM_UNIXTIME(UNIX_TIMESTAMP('{}')),'{}','{}')"
                   
-           cur.execute(rqt_insertDevice.format(dev.alias,dev.model,dev.host,dev.hw_info['hw_ver'],dev.mac,plug.led,plug.on_since,plugState,'Plug disponible'))
-           stateInsert = "L'insertion du device a été effectuée avec succès !"
+              cur.execute(rqt_insertDevice.format(dev.alias,dev.model,dev.host,dev.hw_info['hw_ver'],dev.mac,plug.led,plug.on_since,plugState,'Plug disponible'))
+              stateInsert = "L'insertion de l'équipement a été effectuée avec succès !"
        else:
-           stateInsert ="Erreur de connexion au Smart"
+           stateInsert ="L'équipement est introuvable"
 
     return stateInsert
 
