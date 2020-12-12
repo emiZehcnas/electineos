@@ -107,16 +107,17 @@ def addDevice():
               plugState = 'off'
            elif(plug.is_on):
               plugState = 'on'
-           
+
+                     
            #Check if the host already exist in database
            cur.execute("SELECT host FROM devices WHERE host = '{}'".format(host)) 
            res = cur.fetchone() 
            if str(res) != "None": 
               stateInsert = "L'équipement existe déjà"
            else:
-              rqt_insertDevice = "INSERT INTO ELECTINEOS.devices (alias,model,host,hardware,mac,led_state,led_state_since,plug,statut) VALUES ('{}','{}','{}','{}','{}','{}',FROM_UNIXTIME(UNIX_TIMESTAMP('{}')),'{}','{}')"
+              rqt_insertDevice = "INSERT INTO ELECTINEOS.devices (alias,model,host,hardware,mac,led_state,plug,statut,created_at,updated_at) VALUES ('{}','{}','{}','{}','{}','{}','{}','{}','{}','{}')"
                   
-              cur.execute(rqt_insertDevice.format(dev.alias,dev.model,dev.host,dev.hw_info['hw_ver'],dev.mac,plug.led,plug.on_since,plugState,'Plug disponible'))
+              cur.execute(rqt_insertDevice.format(dev.alias,dev.model,dev.host,dev.hw_info['hw_ver'],dev.mac,plug.led,plugState,'Plug disponible',datetime.now(),datetime.now()))
               stateInsert = "L'insertion de l'équipement a été effectuée avec succès !"
        else:
            stateInsert ="L'équipement est introuvable"
@@ -142,6 +143,41 @@ def removeDevice():
         stateRemove="Impossible de se connecter à la base de données"
     
     return stateRemove
+
+
+
+@app.route('/updateDevice', methods=['GET','POST'])
+def updateDevice():
+    stateUpdate=""
+    host = request.args.get('host')
+    conn = connDB()
+    if conn is True:
+       if connSmart(host) is True:
+           #Get the state of plug : On/Off
+           if (plug.is_off):
+              plugState = 'off'
+           elif(plug.is_on):
+              plugState = 'on'
+           try:
+              rqt_updateDevice = "UPDATE devices SET alias='{}', model='{}', hardware='{}', mac='{}', led_state='{}', plug = '{}', statut='{}',updated_at='{}' WHERE host='{}' "
+              cur.execute(rqt_updateDevice.format(dev.alias,dev.model,dev.hw_info['hw_ver'],dev.mac,plug.led,plugState,'Plug disponible',datetime.now(),host))
+                
+              stateUpdate = "L'équipement a bien été mis à jour"
+           except:
+              stateUpdate = "Erreur lors de la mise à jour de l'équipement"
+       else:
+           statutUpdate = "Impossible de récupérer les données de l'équipement"
+    else:
+        statutUpdate = "Impossible de se connecter à la base de données"
+           
+        
+    
+    return stateUpdate
+                  
+                
+
+                
+                
     
 
 
@@ -182,7 +218,7 @@ def getDevice():
         sys.exit(1)
     
     cur = conn.cursor()
-    req = "SELECT id,alias,model,host,hardware,mac,led_state,plug,statut FROM devices"
+    req = "SELECT id,alias,model,host,hardware,mac,led_state,plug,statut,created_at,updated_at FROM devices"
     cur.execute(req.format())
     row_headers=[x[0] for x in cur.description]
     rv = cur.fetchall()
@@ -191,7 +227,7 @@ def getDevice():
         json_data.append(dict(zip(row_headers,result)))
 
 
-    return json.dumps(json_data)
+    return json.dumps(json_data,indent=4, sort_keys=True, default=str)
     
     
 
