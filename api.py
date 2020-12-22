@@ -46,6 +46,40 @@ def connSmart(host):
     except:
        print('kooooo')
        return False
+       
+       
+        
+
+def updateDeviceByHost(host):
+    stateUpdate=""
+    if conn is True:
+       if connSmart(host) is True:
+           #Get the state of plug : On/Off
+           if (plug.is_off):
+              plugState = 'off'
+           elif(plug.is_on):
+              plugState = 'on'
+           try:
+              rqt_updateDevice = "UPDATE devices SET alias='{}', model='{}', hardware='{}', mac='{}', led_state='{}', plug = '{}', statut='{}',updated_at='{}' WHERE host='{}' "
+              cur.execute(rqt_updateDevice.format(dev.alias,dev.model,dev.hw_info['hw_ver'],dev.mac,plug.led,plugState,'équipement disponible',datetime.now(),host))
+                
+              stateUpdate = "L'équipement a bien été mis à jour"
+           except:
+              stateUpdate = "Erreur lors de la mise à jour de l'équipement"
+       else:
+           try:
+               rqt_updateDevice = "UPDATE devices set statut='{}',updated_at='{}' WHERE host='{}' "
+               cur.execute(rqt_updateDevice.format('équipement indisponible',datetime.now(),host))
+               statutUpdate = "Impossible de récupérer les données de l'équipement"
+           except:
+               stateUpdate = "Erreur lors de la mise à jour de l'équipement"
+    else:
+        statutUpdate = "Impossible de se connecter à la base de données"
+           
+        
+    
+    return stateUpdate
+
 
     
 
@@ -134,8 +168,19 @@ def removeDevice():
     conn = connDB()
     if conn is True:
         try:
+           #Get Host from table device by id
+           req_host = "SELECT host from devices WHERE id='{}'"
+           cur.execute(req_host.format(idDevice))
+           field_name = [field[0] for field in cur.description]
+           res = cur.fetchone()
+           value = dict(zip(field_name, res))
+           host = value['host']
+           #delete devices row by id
            req = "DELETE FROM devices WHERE id = '{}'"
            cur.execute(req.format(idDevice))
+           #delete emeter row by host
+           req = "DELETE FROM emeter WHERE host = '{}'"
+           cur.execute(req.format(host))
            stateRemove="l'équipement a bien été supprimé"
         except:
            stateRemove="Erreur lors de la suppression de l'équipement"
@@ -160,23 +205,42 @@ def updateDevice():
               plugState = 'on'
            try:
               rqt_updateDevice = "UPDATE devices SET alias='{}', model='{}', hardware='{}', mac='{}', led_state='{}', plug = '{}', statut='{}',updated_at='{}' WHERE host='{}' "
-              cur.execute(rqt_updateDevice.format(dev.alias,dev.model,dev.hw_info['hw_ver'],dev.mac,plug.led,plugState,'Plug disponible',datetime.now(),host))
+              cur.execute(rqt_updateDevice.format(dev.alias,dev.model,dev.hw_info['hw_ver'],dev.mac,plug.led,plugState,'équipement disponible',datetime.now(),host))
                 
               stateUpdate = "L'équipement a bien été mis à jour"
            except:
               stateUpdate = "Erreur lors de la mise à jour de l'équipement"
        else:
-           statutUpdate = "Impossible de récupérer les données de l'équipement"
+           try:
+               rqt_updateDevice = "UPDATE devices set statut='{}',updated_at='{}' WHERE host='{}' "
+               cur.execute(rqt_updateDevice.format('équipement indisponible',datetime.now(),host))
+               statutUpdate = "Impossible de récupérer les données de l'équipement"
+           except:
+               stateUpdate = "Erreur lors de la mise à jour de l'équipement"
     else:
         statutUpdate = "Impossible de se connecter à la base de données"
            
         
     
     return stateUpdate
-                  
-                
+    
 
-                
+
+
+@app.route('/updateAllDevices', methods=['GET'])
+def updateAllDevices():
+    global conn
+    conn = connDB()
+    if conn is True:
+        req="SELECT * from devices"
+        cur.execute (req.format())
+        row_headers=[x[0] for x in cur.description]
+        rv = cur.fetchall()
+        for result in rv:
+            row = dict(zip(row_headers,result))
+            print(updateDeviceByHost(row['host']))
+        return ("ok")
+           
                 
     
 
@@ -200,7 +264,28 @@ def getDeviceById():
  
             return "Erreur lors de la récupération des données de l'équipement"        
             
-        
+            
+            
+
+@app.route('/getEmeterById', methods=['GET','POST'])
+def getEmeterById():
+    conn = connDB()
+    idDevice = request.args.get('id')
+    if conn is True:
+        try:
+             req = "select devices.*, emeter.* from devices INNER JOIN emeter on devices.host=emeter.host WHERE devices.id='{}' ORDER BY emeter.statement_date"
+             cur.execute(req.format(idDevice))
+             row_headers=[x[0] for x in cur.description]
+             rv = cur.fetchall()
+             json_data=[]
+             for result in rv:
+                 json_data.append(dict(zip(row_headers,result)))
+                
+             return json.dumps(json_data,indent=4, sort_keys=True, default=str)
+        except:                        
+ 
+             return "Erreur lors de la récupération des données de l'équipement"
+                
                   
 
     
