@@ -191,12 +191,22 @@ def removeDevice():
 
 
 
-@app.route('/updateDevice', methods=['GET','POST'])
-def updateDevice():
+@app.route('/updateDeviceById', methods=['GET','POST'])
+def updateDeviceById():
     stateUpdate=""
-    host = request.args.get('host')
+    idDevice = request.args.get('id')
     conn = connDB()
     if conn is True:
+       try:
+           #Get Host from table device by id
+           req_host = "SELECT host from devices WHERE id='{}'"
+           cur.execute(req_host.format(idDevice))
+           field_name = [field[0] for field in cur.description]
+           res = cur.fetchone()
+           value = dict(zip(field_name, res))
+           host = value['host']
+       except:
+           stateUpdate="Erreur lors de la récupération de l'adresse IP"
        if connSmart(host) is True:
            #Get the state of plug : On/Off
            if (plug.is_off):
@@ -305,7 +315,7 @@ def getCurrentEmeter():
            if connSmart(host) is True:
                devs = dev.emeter_realtime
                print('cest ok')
-               current = str(devs['total'])
+               current = str(round(devs['total'],2))
            else:
                current='ko'
         except:
@@ -315,7 +325,51 @@ def getCurrentEmeter():
     
     print(current)
     return current
+
+
+
+
+@app.route('/lightSwitch',methods=['GET','POST'])
+def lightSwitch():
+    stateUpdate=""
+    idDevice = request.args.get('id')
+    conn = connDB()
+    if conn is True:
+        #Get Host from table device by id
+        req_host = "SELECT host from devices WHERE id='{}'"
+        cur.execute(req_host.format(idDevice))
+        field_name = [field[0] for field in cur.description]
+        res = cur.fetchone()
+        value = dict(zip(field_name, res))
+        host = value['host']
+        if connSmart(host) is True:
+            #Get the state of plug : On/Off
+            if (plug.is_off):
+               asyncio.run(plug.turn_on())
+               plugState = 'on'
+               stateUpdate = "L'équipement a bien été allumé"
+            elif(plug.is_on):
+               asyncio.run(plug.turn_off())
+               plugState = 'off'
+               stateUpdate = "L'équipement a bien été éteint"
+            try:
+               rqt_updateDevice = "UPDATE devices SET alias='{}', model='{}', hardware='{}', mac='{}', led_state='{}', plug = '{}', statut='{}',updated_at='{}' WHERE host='{}' "
+               cur.execute(rqt_updateDevice.format(dev.alias,dev.model,dev.hw_info['hw_ver'],dev.mac,plug.led,plugState,'équipement disponible',datetime.now(),host))
+            except:
+               stateUpdate = "Erreur lors de la mise à jour de l'équipement"
+        else:
+            try:
+                rqt_updateDevice = "UPDATE devices set statut='{}',updated_at='{}' WHERE host='{}' "
+                cur.execute(rqt_updateDevice.format('équipement indisponible',datetime.now(),host))
+                statutUpdate = "Impossible de récupérer les données de l'équipement"
+            except:
+                stateUpdate = "Erreur lors de la mise à jour de l'équipement"
+    else:
+         statutUpdate = "Impossible de se connecter à la base de données"
            
+    return stateUpdate
+    
+        
 
 
 
