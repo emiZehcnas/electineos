@@ -283,7 +283,7 @@ def getEmeterById():
     idDevice = request.args.get('id')
     if conn is True:
         try:
-             req = "select devices.*, emeter.* from devices INNER JOIN emeter on devices.host=emeter.host WHERE devices.id='{}' ORDER BY emeter.statement_date"
+             req = "select devices.*, emeter.id, emeter.host, UNIX_TIMESTAMP(emeter.statement_date) as statement_date, emeter.emeter_current, emeter.emeter_voltage, emeter.emeter_power, emeter.emeter_total_concumption, emeter.emeter_today, emeter_month from devices INNER JOIN emeter on devices.host=emeter.host WHERE devices.id='{}' AND MONTH(emeter.statement_date) = MONTH(CURRENT_DATE()) ORDER BY emeter.statement_date DESC"
              cur.execute(req.format(idDevice))
              row_headers=[x[0] for x in cur.description]
              rv = cur.fetchall()
