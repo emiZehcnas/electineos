@@ -283,7 +283,8 @@ def getEmeterById():
     idDevice = request.args.get('id')
     if conn is True:
         try:
-             req = "select devices.*, emeter.id, emeter.host, UNIX_TIMESTAMP(emeter.statement_date) as statement_date, emeter.emeter_current, emeter.emeter_voltage, emeter.emeter_power, emeter.emeter_total_concumption, emeter.emeter_today, emeter_month from devices INNER JOIN emeter on devices.host=emeter.host WHERE devices.id='{}' AND MONTH(emeter.statement_date) = MONTH(CURRENT_DATE()) ORDER BY emeter.statement_date DESC"
+             #req = "select devices.*, emeter.id, emeter.host, UNIX_TIMESTAMP(emeter.statement_date) as statement_date, emeter.emeter_current, emeter.emeter_voltage, emeter.emeter_power, emeter.emeter_total_concumption, emeter.emeter_today, emeter_month from devices INNER JOIN emeter on devices.host=emeter.host WHERE devices.id='{}' AND MONTH(emeter.statement_date) = MONTH(CURRENT_DATE()) ORDER BY emeter.statement_date DESC"
+             req = "select devices.*, emeter.id, emeter.host, UNIX_TIMESTAMP(emeter.statement_date) as statement_date, emeter.emeter_current, emeter.emeter_voltage, emeter.emeter_power, emeter.emeter_total_concumption, emeter.emeter_today, emeter_month from devices INNER JOIN emeter on devices.host=emeter.host WHERE devices.id='{}' ORDER BY emeter.statement_date DESC"
              cur.execute(req.format(idDevice))
              row_headers=[x[0] for x in cur.description]
              rv = cur.fetchall()
@@ -402,28 +403,23 @@ def test():
     
 
 
-@app.route('/device', methods=['GET'])
+@app.route('/devices', methods=['GET'])
 def getDevice():
-    stateConn="Connexion Ok"
-    try:
-        conn = mariadb.connect(**config)
-        
-
-    except mariadb.Error as e:
-        stateConn = "Error: {e}"
-        sys.exit(1)
-    
-    cur = conn.cursor()
+    stateConn=""
     req = "SELECT id,alias,model,host,hardware,mac,led_state,plug,statut,created_at,updated_at FROM devices"
-    cur.execute(req.format())
-    row_headers=[x[0] for x in cur.description]
-    rv = cur.fetchall()
-    json_data=[]
-    for result in rv:
-        json_data.append(dict(zip(row_headers,result)))
+    conn = connDB()
+    if conn is True:
+        if request.method == 'GET':
+            cur.execute(req.format())
+            row_headers=[x[0] for x in cur.description]
+            rv = cur.fetchall()
+            json_data=[]
+            for result in rv:
+                json_data.append(dict(zip(row_headers,result)))
 
-
-    return json.dumps(json_data,indent=4, sort_keys=True, default=str)
+            return json.dumps(json_data,indent=4, sort_keys=True, default=str)
+  
+  
     
     
 
