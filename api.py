@@ -363,6 +363,41 @@ def lightSwitch():
          statutUpdate = "Impossible de se connecter à la base de données"
            
     return stateUpdate
+
+
+
+
+@app.route('/scheduling', methods=['GET','POST'])
+def scheduling():
+    status =""
+    idDevice = request.args.get('id')
+    if connDB() is True:
+       try:
+           #Get Host from table device by id
+           rqt = "SELECT host from devices WHERE id='{}'"
+           cur.execute(rqt.format(idDevice))
+           field_name = [field[0] for field in cur.description]
+           res = cur.fetchone()
+           value = dict(zip(field_name, res))
+           host = value['host']
+           rqt = "SELECT * FROM scheduling WHERE host='{}'"
+           cur.execute(rqt.format(host))
+           row_headers=[x[0] for x in cur.description]
+           rv = cur.fetchall()
+           json_data=[]
+           for result in rv:
+               json_data.append(dict(zip(row_headers,result)))
+           return json.dumps(json_data,indent=4, sort_keys=True, default=str)
+           logging.info('scheduling : Récupération des tâches planifiées')
+       except:
+           status ="Erreur lors de la récupération des tâches planifiées"
+           logging.error('scheduling : Erreur lors de la mise à jour de l\'équipement')
+           return status
+    else:
+       status="Impossible de se connecter à la base de données"
+       logging.warning('scheduling : Impossible de connecter à la base de données')
+
+       return status
     
         
 
