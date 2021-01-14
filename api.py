@@ -11,6 +11,7 @@ from pprint import pformat as pf
 from flask import Flask, request
 from datetime import datetime
 from datetime import date
+from pprint import pprint
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
@@ -367,7 +368,7 @@ def lightSwitch():
 
 
 
-@app.route('/scheduling', methods=['GET','POST'])
+@app.route('/scheduling/all', methods=['GET','POST'])
 def scheduling():
     status =""
     idDevice = request.args.get('id')
@@ -380,7 +381,7 @@ def scheduling():
            res = cur.fetchone()
            value = dict(zip(field_name, res))
            host = value['host']
-           rqt = "SELECT * FROM scheduling WHERE host='{}'"
+           rqt = "SELECT * FROM scheduling WHERE host='{}' ORDER BY hour ASC"
            cur.execute(rqt.format(host))
            row_headers=[x[0] for x in cur.description]
            rv = cur.fetchall()
@@ -400,6 +401,66 @@ def scheduling():
        return status
     
         
+
+
+@app.route('/scheduling', methods=['POST'])
+def addScheduling():
+    status=""
+    value=""
+    _action=""
+    maxId=0    
+    idDevice = request.form['idDevice']
+    action = request.form['display_on_dashboard']
+    time = request.form['time_scheduling']
+    isActive = request.form['isActive']
+    data  = json.loads('{"days": '+request.form.getlist('days')[0]+'}')
+    upd =0
+    if connDB() is True:
+       try:
+          rqt = "SELECT host from devices WHERE id='{}'"
+          cur.execute(rqt.format(idDevice))
+          field_name = [field[0] for field in cur.description]
+          res = cur.fetchone()
+          value = dict(zip(field_name, res))
+          host = value['host']
+          #Insertion de la ligne dans la table
+          rqt = "insert into scheduling(host,action,hour,isActive) VALUES('{}','{}','{}','{}')"
+          cur.execute(rqt.format(host,action,time,isActive))
+          #select last row insered by id
+          rqt = "SELECT max(id) as maxId from scheduling"
+          cur.execute(rqt.format())
+          field_name = [field[0] for field in cur.description]
+          res = cur.fetchone()
+          value = dict(zip(field_name, res))
+          maxId = value['maxId']
+          print(maxId) 
+          for item in data['days']:
+             #Control existing plannification at the same day and time
+             rqt = "SELECT * FROM scheduling WHERE {}=1 AND hour='{}'"
+             cur.execute(rqt.format(item,time))
+             res = cur.fetchone() 
+             if str(res) == "None": 
+                 upd += 1
+                 rqt = "UPDATE scheduling SET {}=1 WHERE id={}"
+                 cur.execute(rqt.format(item,maxId))
+                 print(rqt.format(item,maxId))
+             #daySelected.append(day)
+          if upd == 0:
+              rqt = "DELETE FROM scheduling WHERE id={}"
+              cur.execute(rqt.format(maxId))
+              status ="Planification non effectuée pour cause de doublons."
+          else:
+              status ="Planification effectuée."
+       except:
+           status ="addScheduling : Erreur lors de l'insertion de la tâche planifiée"
+           logging.error("addScheduling : Erreur lors de l'insertion de la tâche planifiée")  
+
+       
+
+
+    #print('jsonload : '+str(data['days'])) 
+    #print(request.form.getlist('days')) 
+    return status
 
 
 
@@ -432,12 +493,11 @@ def test():
     
 
 
-@app.route('/devices', methods=['GET'])
+@app.route('/devices')
 def devices():
     stateConn=""
     req = "SELECT id,alias,model,host,hardware,mac,led_state,plug,statut,created_at,updated_at FROM devices"
     if connDB() is True:
-        if request.method == 'GET':
             cur.execute(req.format())
             row_headers=[x[0] for x in cur.description]
             rv = cur.fetchall()
