@@ -87,6 +87,22 @@ def updateDeviceByHost(host):
     return stateUpdate
 
 
+
+
+def getHost(idDevice):
+    if connDB() is True:
+           try:
+              rqt = "SELECT host from devices WHERE id='{}'"
+              cur.execute(rqt.format(idDevice))
+              field_name = [field[0] for field in cur.description]
+              res = cur.fetchone()
+              value = dict(zip(field_name, res))
+              host = value['host']
+              logging.info("récupération de l'adresse IP "+host)
+           except:
+              host="0000"
+              logging.error("getHost : Impossible de récupérer l'adresse IP")
+    return host
     
 
 
@@ -369,7 +385,7 @@ def lightSwitch():
 
 
 @app.route('/scheduling/all', methods=['GET','POST'])
-def scheduling():
+def allScheduling():
     status =""
     idDevice = request.args.get('id')
     if connDB() is True:
@@ -403,64 +419,90 @@ def scheduling():
         
 
 
-@app.route('/scheduling', methods=['POST'])
-def addScheduling():
-    status=""
-    value=""
-    _action=""
-    maxId=0    
-    idDevice = request.form['idDevice']
-    action = request.form['display_on_dashboard']
-    time = request.form['time_scheduling']
-    isActive = request.form['isActive']
-    data  = json.loads('{"days": '+request.form.getlist('days')[0]+'}')
-    upd =0
-    if connDB() is True:
-       try:
-          rqt = "SELECT host from devices WHERE id='{}'"
-          cur.execute(rqt.format(idDevice))
-          field_name = [field[0] for field in cur.description]
-          res = cur.fetchone()
-          value = dict(zip(field_name, res))
-          host = value['host']
-          #Insertion de la ligne dans la table
-          rqt = "insert into scheduling(host,action,hour,isActive) VALUES('{}','{}','{}','{}')"
-          cur.execute(rqt.format(host,action,time,isActive))
-          #select last row insered by id
-          rqt = "SELECT max(id) as maxId from scheduling"
-          cur.execute(rqt.format())
-          field_name = [field[0] for field in cur.description]
-          res = cur.fetchone()
-          value = dict(zip(field_name, res))
-          maxId = value['maxId']
-          print(maxId) 
-          for item in data['days']:
-             #Control existing plannification at the same day and time
-             rqt = "SELECT * FROM scheduling WHERE {}=1 AND hour='{}'"
-             cur.execute(rqt.format(item,time))
-             res = cur.fetchone() 
-             if str(res) == "None": 
-                 upd += 1
-                 rqt = "UPDATE scheduling SET {}=1 WHERE id={}"
-                 cur.execute(rqt.format(item,maxId))
-                 print(rqt.format(item,maxId))
-             #daySelected.append(day)
-          if upd == 0:
-              rqt = "DELETE FROM scheduling WHERE id={}"
-              cur.execute(rqt.format(maxId))
-              status ="Planification non effectuée pour cause de doublons."
-          else:
-              status ="Planification effectuée."
-       except:
-           status ="addScheduling : Erreur lors de l'insertion de la tâche planifiée"
-           logging.error("addScheduling : Erreur lors de l'insertion de la tâche planifiée")  
-
-       
-
-
+@app.route('/scheduling', methods=['POST','DELETE','GET'])
+def scheduling():
+    response =""
+    if request.method=='POST':     
+        value=""
+        _action=""
+        maxId=0    
+        idDevice = request.form['idDevice']
+        action = request.form['display_on_dashboard']
+        time = request.form['time_scheduling']
+        isActive = request.form['isActive']
+        data  = json.loads('{"days": '+request.form.getlist('days')[0]+'}')
+        upd =0
+        if connDB() is True:
+           try:
+              host = getHost(idDevice)
+              #Insertion de la ligne dans la table
+              rqt = "insert into scheduling(host,action,hour,isActive) VALUES('{}','{}','{}','{}')"
+              cur.execute(rqt.format(host,action,time,isActive))
+              #select last row insered by id
+              rqt = "SELECT max(id) as maxId from scheduling"
+              cur.execute(rqt.format())
+              field_name = [field[0] for field in cur.description]
+              res = cur.fetchone()
+              value = dict(zip(field_name, res))
+              maxId = value['maxId']
+              print(maxId) 
+              for item in data['days']:
+                 #Control existing plannification at the same day and time
+                 rqt = "SELECT * FROM scheduling WHERE {}=1 AND hour='{}'"
+                 cur.execute(rqt.format(item,time))
+                 res = cur.fetchone() 
+                 if str(res) == "None": 
+                     upd += 1
+                     rqt = "UPDATE scheduling SET {}=1 WHERE id={}"
+                     cur.execute(rqt.format(item,maxId))
+                     print(rqt.format(item,maxId))
+                 #daySelected.append(day)
+              if upd == 0:
+                  rqt = "DELETE FROM scheduling WHERE id={}"
+                  cur.execute(rqt.format(maxId))
+                  response ="Planifications non effectuée pour cause de doublons."
+              else:
+                  response ="Planification effectuée."
+           except:
+               response ="Scheduling : Erreur lors de l'insertion de la tâche planifiée"
+               logging.error("scheduling() : Erreur lors de l'insertion de la tâche planifiée")
+    elif request.method =='DELETE':
+        if connDB() is True:
+            try:
+                _id = request.form['idScheduling']
+                print("id "+str(_id))
+                rqt = "DELETE FROM scheduling WHERE id={}"
+                cur.execute(rqt.format(_id))
+                response = "Suppression de la tâche planifiées."
+                logging.info("Suppression de la tâche planifiée "+_id)
+            except:
+                response="Erreur lors de la suppression de la tâche planifiée"
+                logging.error("Scheduling -> DELETE : Error lors de la suppression de la tâche planifiée "+_id)
+        else:
+            response="Erreur lors de la connection à la base de données"
+            logging.warning("scheduling : Erreur de connexion à la base de donnée")
     #print('jsonload : '+str(data['days'])) 
-    #print(request.form.getlist('days')) 
-    return status
+    #print(request.form.getlist('days'))
+    elif request.method =='GET':
+        if connDB() is True:
+            try:
+                idScheduling = request.args.get('id')
+                rqt = "SELECT * FROM scheduling WHERE id={}"
+                cur.execute(rqt.format(idScheduling))
+                row_headers=[x[0] for x in cur.description]
+                rv = cur.fetchall()
+                json_data=[]
+                for result in rv:
+                    json_data.append(dict(zip(row_headers,result)))
+                
+                response = json.dumps(json_data,indent=4, sort_keys=True, default=str)
+            except:
+                response ="Erreur lors de la récupération de la tâche planifiée."
+                logging.error("scheduling -> GET : Erreur lors de la récupération de la tpache planifiée")
+    return response
+                
+                
+    
 
 
 
