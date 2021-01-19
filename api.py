@@ -270,6 +270,7 @@ def devicesUpdate():
 @app.route('/device',methods=['GET'])
 def device():
     idDevice = request.args.get('id')
+    response =""
     if connDB() is True:
         try:
             req="SELECT * from devices WHERE id = {}"
@@ -280,9 +281,12 @@ def device():
             for result in rv:
                 json_data.append(dict(zip(row_headers,result)))
                 
-            return json.dumps(json_data,indent=4, sort_keys=True, default=str)
+            response = json.dumps(json_data,indent=4, sort_keys=True, default=str)
         except:                        
-            return "Erreur lors de la récupération des données de l'équipement"        
+            response = "Erreur lors de la récupération des données de l'équipement"
+    else:
+        response = "Erreur lors de la connexion à la base de données"
+    return response        
             
             
             

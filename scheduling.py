@@ -44,11 +44,34 @@ async def connSmart(host):
     except:
        print('kooooo')
        return False
+
+
+
+async def getHost(idDevice):
+    host=""
+    if await(connDB()) is True:
+           try:
+              rqt = "SELECT host from devices WHERE id='{}'"
+              cur.execute(rqt.format(idDevice))
+              field_name = [field[0] for field in cur.description]
+              res = cur.fetchone()
+              value = dict(zip(field_name, res))
+              host = value['host']
+              #logging.info("récupération de l'adresse IP "+host)
+           except:
+              host="0000"
+    return host
+    
+    
+    
+    
               
 async def scheduling():
      action=""
      host=""
      plugState=""
+     idDevice=0
+     host=""
      if await (connDB()) is True:
          #get current day
          
@@ -67,8 +90,10 @@ async def scheduling():
          for result in rv:
              value = dict(zip(row_headers, result))
              action = value['actionScheduling']
-             host = value['host']
-             print(action)
+             idDevice = value['device']
+             host = await(getHost(idDevice))
+             print(host)
+             print(idDevice)
              if await(connSmart(host)) is True:
                  if action == 1:
                      if plug.is_off:
@@ -79,10 +104,10 @@ async def scheduling():
                          await(plug.turn_off())
                          plugState="off"
                  try:
-                    rqt = "UPDATE devices SET alias='{}', model='{}', hardware='{}', mac='{}', led_state='{}', plug = '{}', statut='{}',updated_at='{}' WHERE host='{}' "
-                    cur.execute(rqt.format(dev.alias,dev.model,dev.hw_info["hw_ver"],dev.mac,plug.led,plugState,"equipement disponible",datetime.now(),host))
+                     rqt = "UPDATE devices SET alias='{}', model='{}', hardware='{}', mac='{}', led_state='{}', plug = '{}', statut='{}',updated_at='{}' WHERE id='{}' "
+                     cur.execute(rqt.format(dev.alias,dev.model,dev.hw_info["hw_ver"],dev.mac,plug.led,plugState,"equipement disponible",datetime.now(),idDevice))
                  except:
-                    print("erreur requete : "+rqt)
+                     print("erreur requete : "+rqt)
      else:
          print("ko")                   
       
