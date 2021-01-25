@@ -196,19 +196,12 @@ def deviceRemove():
     idDevice = request.args.get('id') 
     if connDB() is True:
         try:
-           #Get Host from table device by id
-           req_host = "SELECT host from devices WHERE id='{}'"
-           cur.execute(req_host.format(idDevice))
-           field_name = [field[0] for field in cur.description]
-           res = cur.fetchone()
-           value = dict(zip(field_name, res))
-           host = value['host']
            #delete devices row by id
            req = "DELETE FROM devices WHERE id = '{}'"
            cur.execute(req.format(idDevice))
            #delete emeter row by host
-           req = "DELETE FROM emeter WHERE host = '{}'"
-           cur.execute(req.format(host))
+           req = "DELETE FROM emeter WHERE id = '{}'"
+           cur.execute(req.format(idDevice))
            #delete delete schedule by id
            req = "DELETE FROM schedules WHERE device = '{}'"
            cur.execute(req.format(idDevice))
