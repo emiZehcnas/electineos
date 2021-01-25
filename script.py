@@ -44,16 +44,18 @@ async def connSmart(host):
 async def emeter():
      conn = await (connDB())
      if conn is True:
-         cur.execute("SELECT host FROM devices") 
-         res = cur.fetchone()
+         cur.execute("SELECT id,host FROM devices") 
+         row_headers=[x[0] for x in cur.description]
+         res = cur.fetchall()
          for row in res:
-            host = row
-            print(host)
+            value = dict(zip(row_headers, row))
+            host = value['host']
+            device=value['id']
             connex = await(connSmart(host))
             if connex is True:
                  devs = dev.emeter_realtime
-                 rqt = "INSERT INTO emeter (host,statement_date,emeter_current,emeter_voltage,emeter_power,emeter_total_concumption,emeter_today,emeter_month) VALUES ('{}','{}','{}','{}','{}','{}','{}','{}')"
-                 cur.execute(rqt.format(host,datetime.now(),devs["current"],devs["voltage"],devs["power"],devs["total"],dev.emeter_today,dev.emeter_this_month))
+                 rqt = "INSERT INTO emeter (host,statement_date,emeter_current,emeter_voltage,emeter_power,emeter_total_concumption,emeter_today,emeter_month,device) VALUES ('{}','{}','{}','{}','{}','{}','{}','{}','{}')"
+                 cur.execute(rqt.format(host,datetime.now(),devs["current"],devs["voltage"],devs["power"],devs["total"],dev.emeter_today,dev.emeter_this_month,device))
                  print(devs['current'])
                  print(devs['voltage'])
                  print(devs['power'])

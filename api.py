@@ -16,7 +16,7 @@ from pprint import pprint
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
-logging.basicConfig(filename=str(date.today())+'.log', level=logging.INFO)
+logging.basicConfig(filename='./log/'+str(date.today())+'.log', level=logging.INFO)
 
 config = {
 	'host': '127.0.0.1',
@@ -98,10 +98,10 @@ def getHost(idDevice):
               res = cur.fetchone()
               value = dict(zip(field_name, res))
               host = value['host']
-              logging.info("récupération de l'adresse IP "+host)
+              logging.info("---- getHost() :récupération de l'adresse IP "+host+" ----")
            except:
               host="0000"
-              logging.error("getHost : Impossible de récupérer l'adresse IP")
+              logging.error("---- getHost() : Impossible de récupérer l'adresse IP"+ " ----")
     return host
     
 
@@ -149,50 +149,50 @@ def getAlias():
 @app.route('/device/add', methods=['GET','POST'])
 def deviceAdd():
     #Initialization of variables
-    status=""
+    response =""
     host = request.args.get('host') 
     print(cur)
     #Connection Test
     if connDB() is True:
-       #Connection to SmartDevice and SmartPlug
-       if connSmart(host) is True:
-           emeter_status = dev.emeter_realtime
-           #Get the state of plug : On/Off
-           if (plug.is_off):
-              plugState = 'off'
-           elif(plug.is_on):
-              plugState = 'on'
-
-                     
-           #Check if the host already exist in database
-           cur.execute("SELECT host FROM devices WHERE host = '{}'".format(host)) 
-           res = cur.fetchone() 
-           if str(res) != "None": 
-              status = "L'équipement existe déjà"
+       try:
+           #Connection to SmartDevice and SmartPlug
+           if connSmart(host) is True:
+               emeter_status = dev.emeter_realtime
+               #Get the state of plug : On/Off
+               if (plug.is_off):
+                  plugState = 'off'
+               elif(plug.is_on):
+                  plugState = 'on'         
+               #Check if the host already exist in database
+               logging.info("---- deviceAdd() : Vérification de l'existance de l'équipement "+" ----")
+               cur.execute("SELECT host FROM devices WHERE host = '{}'".format(host)) 
+               res = cur.fetchone() 
+               if str(res) != "None": 
+                   response = "L'équipement existe déjà"
+                   logging.info("---- deviceAdd() : L'équipement existe déjà ----")
+               else:
+                   rqt = "INSERT INTO ELECTINEOS.devices (alias,model,host,hardware,mac,led_state,plug,statut,created_at,updated_at) VALUES ('{}','{}','{}','{}','{}','{}','{}','{}','{}','{}')"    
+                   cur.execute(rqt.format(dev.alias,dev.model,dev.host,dev.hw_info['hw_ver'],dev.mac,plug.led,plugState,'Plug disponible',datetime.now(),datetime.now()))
+                   response = "L'insertion de l'équipement a été effectuée avec succès !"
+                   logging.info("---- deviceAdd() : L\'insertion de l\'équipement : "+ host+" ----")
            else:
-              try:
-                  rqt = "INSERT INTO ELECTINEOS.devices (alias,model,host,hardware,mac,led_state,plug,statut,created_at,updated_at) VALUES ('{}','{}','{}','{}','{}','{}','{}','{}','{}','{}')"    
-                  cur.execute(rqt.format(dev.alias,dev.model,dev.host,dev.hw_info['hw_ver'],dev.mac,plug.led,plugState,'Plug disponible',datetime.now(),datetime.now()))
-                  status = "L'insertion de l'équipement a été effectuée avec succès !"
-                  logging.info('deviceAdd : L\'insertion de l\'équipement : '+ host)
-              except:
-                  status = "Erreur lors de l'insertion de l'équipement"
-                  logging.error('deviceAdd : Erreur lors de l\'insertion de l\'équipement : '+ host)
-       else:
-           status ="L'équipement est introuvable"
-           logging.warning('deviceAdd : L\'équipement est introuvable')
+               response ="L'équipement est introuvable"
+               logging.warning("---- deviceAdd() : L'équipement est introuvable ----")
+       except:
+           response="Erreur lors de l'insert de l'équipement"
+           logging.error("---- deviceAdd() : Erreur lors de l'insertion de l'équipement ----")
     else:
-       status: "Impossible de se connecter à la base de données"
-       logging.warning('deviceAdd : Impossible de connecter à la base de données')
+       response: "Impossible de se connecter à la base de données"
+       logging.warning('---- deviceAdd() : Impossible de connecter à la base de données ----')
 
-    return status
+    return response
 
 
 
 
 @app.route('/device/remove', methods=['GET','POST'])
 def deviceRemove():
-    status=""
+    response =""
     idDevice = request.args.get('id') 
     if connDB() is True:
         try:
@@ -209,17 +209,20 @@ def deviceRemove():
            #delete emeter row by host
            req = "DELETE FROM emeter WHERE host = '{}'"
            cur.execute(req.format(host))
-           status="l'équipement a bien été supprimé"
-           logging.info('Suppression de l\'équipement')
+           #delete delete schedule by id
+           req = "DELETE FROM schedules WHERE device = '{}'"
+           cur.execute(req.format(idDevice))
+           response="l'équipement a bien été supprimé"
+           logging.info("---- deviceRemove() : Suppression de l'équipement ----")
         except:
-           status="Erreur lors de la suppression de l'équipement"
-           logging.error('deviceRemove : Erreur lors de la suppression de l\'équipement')
+           response="Erreur lors de la suppression de l'équipement"
+           logging.error("---- deviceRemove() : Erreur lors de la suppression de l'équipement ----")
            
     else:
-        status="Impossible de se connecter à la base de données"
-        logging.warning('deviceRemove : Impossible de connecter à la base de données')
+        response="Impossible de se connecter à la base de données"
+        logging.warning("---- deviceRemove() : Impossible de connecter à la base de données ----")
     
-    return status
+    return response
 
 
 
@@ -238,13 +241,13 @@ def deviceUpdate():
                value = dict(zip(field_name, res))
                host = value['host']
                status = updateDeviceByHost(host,idDevice)
-               logging.info('deviceUpdate : Mise à jour de L\'équipement')
+               logging.info("---- deviceUpdate() : Mise à jour de L'équipement ----")
            except:
                response  ="Erreur lors de la mise à jour de l'équipement"
-               logging.error('deviceUpdate : Erreur lors de la mise à jour de l\'équipement')
+               logging.error("---- deviceUpdate() : Erreur lors de la mise à jour de l'équipement ----")
         else:
            response ="Impossible de se connecter à la base de données"
-           logging.warning('deviceRemove : Impossible de connecter à la base de données')
+           logging.warning("---- deviceUpdate() : Impossible de connecter à la base de données ----")
     elif request.method =='POST':
         host = request.form['host']
         idDevice = request.form['idDevice']
@@ -257,18 +260,28 @@ def deviceUpdate():
 
 @app.route('/devices/update', methods=['GET'])
 def devicesUpdate():
+    response =""
     if connDB() is True:
-        req="SELECT * from devices"
-        cur.execute (req.format())
-        row_headers=[x[0] for x in cur.description]
-        rv = cur.fetchall()
-        for result in rv:
-            row = dict(zip(row_headers,result))
-            print(updateDeviceByHost(row['host'],row['id']))
-        Status ="Tous les équipements ont été mis à jour dans la base de données"
-        return Status
+        try:
+            req="SELECT * from devices"
+            cur.execute (req.format())
+            row_headers=[x[0] for x in cur.description]
+            rv = cur.fetchall()
+            for result in rv:
+               row = dict(zip(row_headers,result))
+               print(updateDeviceByHost(row['host'],row['id']))
+            response ="Tous les équipements ont été mis à jour dans la base de données"
+            logging.info("---- devicesUpdate() : Tous les équipements ont été mis à jour dans la base de données ----")
+        except:
+            response ="Erreur lors de la mise à jour des équipements"
+            logging.error("---- devicesUpdate() : Erreur lors de la mise à jour des équipements ----")
+    else:
+        response="Erreur de connexion à la base de données"
+        logging.warning("---- devicesUpdate() : Impossible de se connecter à la base de données ----")
+        
+    return response
            
-                
+               
     
 
 
@@ -284,13 +297,17 @@ def device():
             rv = cur.fetchall()
             json_data=[]
             for result in rv:
+                value = dict(zip(row_headers, result))
                 json_data.append(dict(zip(row_headers,result)))
+                logging.info("---- device() : Récupération des données de l'équipement : "+value['alias']+" ----")
                 
             response = json.dumps(json_data,indent=4, sort_keys=True, default=str)
         except:                        
-            response = "Erreur lors de la récupération des données de l'équipement"
+            response = "Erreur lors de la récupération des informations de l'équipement"
+            logging.error("---- device() : Erreur lors de la récupération des données de l'équipement ----")
     else:
         response = "Erreur lors de la connexion à la base de données"
+        logging.warning("---- device() : Impossible de se connecter à la base de données ----")
     return response        
             
             
@@ -304,11 +321,13 @@ def emeter():
     if connDB() is True:
         try:
             if _filter == "month":
-                req = "select devices.*, emeter.id, emeter.host, UNIX_TIMESTAMP(emeter.statement_date) as statement_date, emeter.emeter_current, emeter.emeter_voltage, emeter.emeter_power, emeter.emeter_total_concumption, emeter.emeter_today, emeter_month from devices INNER JOIN emeter on devices.host=emeter.host WHERE devices.id='{}' AND MONTH(emeter.statement_date) = MONTH(CURRENT_DATE()) ORDER BY emeter.statement_date DESC"
+                req = "select devices.*, emeter.id, emeter.host, UNIX_TIMESTAMP(emeter.statement_date) as statement_date, emeter.emeter_current, emeter.emeter_voltage, emeter.emeter_power, emeter.emeter_total_concumption, emeter.emeter_today, emeter_month from devices INNER JOIN emeter on devices.id=emeter.device WHERE devices.id='{}' AND MONTH(emeter.statement_date) = MONTH(CURRENT_DATE()) ORDER BY emeter.statement_date DESC"
                 #req = "select devices.*, emeter.id, emeter.host, UNIX_TIMESTAMP(emeter.statement_date) as statement_date, emeter.emeter_current, emeter.emeter_voltage, emeter.emeter_power, emeter.emeter_total_concumption, emeter.emeter_today, emeter_month from devices INNER JOIN emeter on devices.host=emeter.host WHERE devices.id='{}' ORDER BY emeter.statement_date DESC"
+                logging.info("---- emeter() : Relevé par device ----")
 
             elif _filter == "all":
-                req = "select emeter.statement_date as 'Date relevé', emeter.emeter_today as 'Moyenne par jour', emeter.emeter_month as 'Moyenne par mois', emeter.emeter_total_concumption as 'Moyenne totale' from devices INNER JOIN emeter on devices.host=emeter.host WHERE devices.id='{}' ORDER BY emeter.statement_date DESC"
+                req = "select devices.alias, emeter.statement_date as 'Date relevé', emeter.emeter_today as 'Moyenne par jour', emeter.emeter_month as 'Moyenne par mois', emeter.emeter_total_concumption as 'Moyenne totale' from devices INNER JOIN emeter on devices.id=emeter.device WHERE devices.id='{}' ORDER BY emeter.statement_date DESC"
+                logging.info("emeter() : Récupération pour tout les relevés.")
             cur.execute(req.format(_id))
             row_headers=[x[0] for x in cur.description]
             rv = cur.fetchall()
@@ -317,10 +336,13 @@ def emeter():
                 json_data.append(dict(zip(row_headers,result)))
                 
             response = json.dumps(json_data,indent=4, sort_keys=True, default=str)
+            logging.info("---- emeter() : Récupération du relevé ----")
         except:                        
              response = "Erreur lors de la récupération des données de l'équipement"
+             logging.error("---- emeter() : Erreur lors de la récupération du relevé ----")
     else:
         response = "Impossible de se connecter à la base de données"
+        logging.warning("---- emeter() : Impossible de se connecter à la base de données ----")
     
     return response
  
@@ -333,7 +355,7 @@ def emeterTotal():
     if connDB() is True:
         try:
            #Get Host from table device by id
-           req_host = "SELECT host from devices WHERE id='{}'"
+           req_host = "SELECT host,alias from devices WHERE id='{}'"
            cur.execute(req_host.format(idDevice))
            field_name = [field[0] for field in cur.description]
            res = cur.fetchone()
@@ -341,14 +363,14 @@ def emeterTotal():
            host = value['host']
            if connSmart(host) is True:
                devs = dev.emeter_realtime
-               print('cest ok')
                response = str(round(devs['total'],2))
+               logging.info("---- emeterTotal() : Récupération de la consommation totale de l'équipement : "+value['alias']+" ----")
            else:
-               logging.error(" emeterTotal() : Impossible de se connecter à l'équipement.")
+               logging.warning("---- emeterTotal() : Impossible de récupérer la consommation totale de l'équipement : "+value['alias']+" ----")
         except:
-           logging.error('emeterTotal() : Erreur')
+           logging.error("---- emeterTotal() : Erreur lors de la récupération de la cosonsommation totale de l'équipement"+" ----")
     else:
-         logging.warning('Impossible de se connecter à la base de données.')
+         logging.warning("---- emeterTotal() : Impossible de se connecter à la base de données"+ " ----")
     
     #print(response)
     return response
@@ -406,13 +428,13 @@ def allScheduling():
            for result in rv:
                json_data.append(dict(zip(row_headers,result)))
            response = json.dumps(json_data,indent=4, sort_keys=True, default=str)
-           logging.info('schedules : Récupération des tâches planifiées')
+           logging.info("---- allScheduling() : Récupération des tâches planifiées ----")
        except:
            response ="Erreur lors de la récupération des tâches planifiées"
-           logging.error('schedules : Erreur lors de la mise à jour de l\'équipement')
+           logging.error("---- allScheduling() : Erreur lors de la mise à jour de l\'équipement ----")
     else:
        response ="Impossible de se connecter à la base de données"
-       logging.warning('scheduling : Impossible de connecter à la base de données')
+       logging.warning("---- allScheduling() : Impossible de connecter à la base de données ----")
 
     return response
     
@@ -426,7 +448,8 @@ def scheduling():
     value=""
     _action=""
     maxId=0
-    if request.method=='POST':         
+    if request.method=='POST':
+        logging.info("---- scheduling/POST : Méthode POST  ----")         
         idDevice = request.form['idDevice']
         action = request.form['display_on_dashboard']
         time = request.form['time_scheduling']
@@ -438,6 +461,7 @@ def scheduling():
               #Insertion de la ligne dans la table
               rqt = "insert into schedules(device,actionScheduling,timeScheduling,isActive) VALUES('{}','{}','{}','{}')"
               cur.execute(rqt.format(idDevice,action,time,isActive))
+              logging.info("---- scheduling/POST : Insertion de la planification en base de données  ----")
               #select last row insered by id
               rqt = "SELECT max(id) as maxId from schedules"
               cur.execute(rqt.format())
@@ -445,7 +469,8 @@ def scheduling():
               res = cur.fetchone()
               value = dict(zip(field_name, res))
               maxId = value['maxId']
-              print(maxId) 
+              print(maxId)
+              logging.info("---- scheduling/POST : Vérification si d'autre planifications sont prévues aux mêmes heures  ----") 
               for item in data['days']:
                  #Control existing plannification at the same day and time
                  rqt = "SELECT * FROM schedules WHERE {}=1 AND timeScheduling='{}'"
@@ -457,16 +482,20 @@ def scheduling():
                      cur.execute(rqt.format(item,maxId))
                      print(rqt.format(item,maxId))
                  #daySelected.append(day)
+                 logging.info("---- scheduling/POST : Ajout des jours sélectionnés pour la plannification  ----")
               if upd == 0:
                   rqt = "DELETE FROM schedules WHERE id={}"
                   cur.execute(rqt.format(maxId))
                   response ="Planifications non effectuée pour cause de doublons."
+                  logging.info("---- scheduling/POST : La planification a été supprimée pour cause de doublons  ----")
               else:
-                  response ="Planification effectuée."
+                  response ="Planification effectuée"
+                  logging.info("---- scheduling/POST : Ajout de la planification  ----")
            except:
                response ="Scheduling : Erreur lors de l'insertion de la tâche planifiée"
-               logging.error("scheduling -> POST : Erreur lors de l'insertion de la tâche planifiée")
+               logging.error("---- scheduling/POST : Erreur lors de l'insertion de la planification ----")
     elif request.method =='DELETE':
+        logging.info("---- scheduling/DELETE : Méthode DELETE  ----")
         if connDB() is True:
             try:
                 _id = request.form['idScheduling']
@@ -474,21 +503,22 @@ def scheduling():
                 rqt = "DELETE FROM schedules WHERE id={}"
                 cur.execute(rqt.format(_id))
                 response = "Suppression de la tâche planifiées."
-                logging.info("Suppression de la tâche planifiée "+_id)
+                logging.info("---- scheduling/DELETE : Suppression de la planification "+_id+" ----")
             except:
                 response="Erreur lors de la suppression de la tâche planifiée"
-                logging.error("Scheduling -> DELETE : Error lors de la suppression de la tâche planifiée "+_id)
+                logging.error("---- Scheduling/DELETE : Error lors de la suppression de la planification "+_id+" ----")
         else:
             response="Erreur lors de la connection à la base de données"
-            logging.warning("scheduling -> DELETE : Erreur de connexion à la base de donnée")
+            logging.warning("---- scheduling/DELETE : Erreur de connexion à la base de donnée ----")
     #print('jsonload : '+str(data['days'])) 
     #print(request.form.getlist('days'))
     elif request.method =='GET':
+        logging.info("---- scheduling/GET : Méthode GET  ----")
         if connDB() is True:
             try:
-                idScheduling = request.args.get('id')
+                _id = request.args.get('id')
                 rqt = "SELECT * FROM schedules WHERE id={}"
-                cur.execute(rqt.format(idScheduling))
+                cur.execute(rqt.format(_id))
                 row_headers=[x[0] for x in cur.description]
                 rv = cur.fetchall()
                 json_data=[]
@@ -496,10 +526,12 @@ def scheduling():
                     json_data.append(dict(zip(row_headers,result)))
                 
                 response = json.dumps(json_data,indent=4, sort_keys=True, default=str)
+                logging.info("---- scheduling/GET : Récupération de la planification "+_id+" ----")
             except:
                 response ="Erreur lors de la récupération de la tâche planifiée."
-                logging.error("scheduling -> GET : Erreur lors de la récupération de la tpache planifiée")
+                logging.error("scheduling/GET : Erreur lors de la récupération de la tpache planifiée")
     elif request.method =='PUT':
+        logging.info("---- scheduling/PUT : Méthode PUT  ----")
         if connDB():
             idScheduling = request.form['idScheduling']
             action = request.form['display_on_dashboard']
@@ -508,6 +540,7 @@ def scheduling():
             data  = json.loads('{"days": '+request.form.getlist('days')[0]+'}')
             rqt="UPDATE schedules set actionScheduling={}, timeScheduling='{}',isActive={}, monday=0, tuesday=0, wednesday=0, thursday=0, friday=0, saturday=0, sunday=0 WHERE id={}"
             cur.execute(rqt.format(action,time,isActive,idScheduling))
+            logging.info("---- scheduling/PUT : Mise à jour de la planification et remise à zéro des jours sélectionnés  ----")
             for item in data['days']:
                  #Control existing plannification at the same day and time
                  rqt = "SELECT * FROM schedules WHERE {}=1 AND timeScheduling='{}'"
@@ -518,23 +551,24 @@ def scheduling():
                      rqt = "UPDATE schedules SET {}=1 WHERE id={} "
                      cur.execute(rqt.format(item,idScheduling))
                      print(rqt.format(item,idScheduling))
+                 logging.info("---- scheduling/PUT : Ajout des jours sélectionnés  ----")
             if upd == 0:
                 rqt = "DELETE FROM schedules WHERE id={}"
                 cur.execute(rqt.format(idScheduling))
                 response ="Planifications non effectuée pour cause de doublons."
+                logging.info("---- scheduling/PUT : La planification a été supprimée pour cause de doublons  ----")
             else:
                 response ="Planification effectuée."
+                logging.info("---- scheduling/PUT : La planification a été supprimée pour cause de doublons  ----")
             
         else:
             response="Erreur lors de la connection à la base de données"
-            logging.warning("scheduling -> PUT : Erreur de connexion à la base de donnée")
+            logging.warning("---- scheduling/PUT : Erreur de connexion à la base de données ----")
     
     return response
                 
                 
     
-
-
 
 @app.route('/test', methods=['GET','POST'])
 def test():
@@ -578,9 +612,10 @@ def devices():
                 json_data.append(dict(zip(row_headers,result)))
 
             response = json.dumps(json_data,indent=4, sort_keys=True, default=str)
+            logging.info("---- devices() : Récupération des informations des équipements ----")
     else:
         response = "Impossible de se connecter à la base de données."
-        logging.warning("devices -> Impossible de se connecter à la base de données.")
+        logging.warning("---- devices() : Impossible de se connecter à la base de données ----")
     return response
   
     
