@@ -16,7 +16,7 @@ from pprint import pprint
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
-logging.basicConfig(filename='./log/'+str(date.today())+'.log', level=logging.INFO)
+logging.basicConfig(filename='/home/pi/api/log/'+str(date.today())+'_api.log', level=logging.INFO)
 
 config = {
 	'host': '127.0.0.1',
@@ -448,8 +448,9 @@ def scheduling():
         time = request.form['time_scheduling']
         isActive = request.form['isActive']
         data  = json.loads('{"days": '+request.form.getlist('days')[0]+'}')
+        print(data['days'])
         if connDB() is True:
-           try:
+           #try:
               #host = getHost(idDevice)
               #Insertion de la ligne dans la table
               rqt = "insert into schedules(device,actionScheduling,timeScheduling,isActive) VALUES('{}','{}','{}','{}')"
@@ -484,9 +485,9 @@ def scheduling():
               else:
                   response ="Planification effectuée"
                   logging.info("---- scheduling/POST : Ajout de la planification  ----")
-           except:
-               response ="Scheduling : Erreur lors de l'insertion de la tâche planifiée"
-               logging.error("---- scheduling/POST : Erreur lors de l'insertion de la planification ----")
+           #except:
+               #response ="Scheduling : Erreur lors de l'insertion de la tâche planifiée"
+               #logging.error("---- scheduling/POST : Erreur lors de l'insertion de la planification ----")
     elif request.method =='DELETE':
         logging.info("---- scheduling/DELETE : Méthode DELETE  ----")
         if connDB() is True:
@@ -531,6 +532,7 @@ def scheduling():
             time = request.form['time_scheduling']
             isActive = request.form['isActive']
             data  = json.loads('{"days": '+request.form.getlist('days')[0]+'}')
+            print(data['days'])
             rqt="UPDATE schedules set actionScheduling={}, timeScheduling='{}',isActive={}, monday=0, tuesday=0, wednesday=0, thursday=0, friday=0, saturday=0, sunday=0 WHERE id={}"
             cur.execute(rqt.format(action,time,isActive,idScheduling))
             logging.info("---- scheduling/PUT : Mise à jour de la planification et remise à zéro des jours sélectionnés  ----")
