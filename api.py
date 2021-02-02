@@ -141,6 +141,11 @@ def getHost(idDevice):
 
 @app.route ('/')
 def response():
+    ''' Connection API Flask
+       Cette fonction permet de verifier la connection Flask côté client
+    Args:
+    Returns:
+    '''
     return "ok"
 
 
