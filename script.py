@@ -54,7 +54,7 @@ async def emeter():
             connex = await(connSmart(host))
             if connex is True:
                  devs = dev.emeter_realtime
-                 rqt = "INSERT INTO emeter (host,statement_date,emeter_current,emeter_voltage,emeter_power,emeter_total_concumption,emeter_today,emeter_month,device) VALUES ('{}','{}','{}','{}','{}','{}','{}','{}','{}')"
+                 rqt = "INSERT INTO statements (host,statement_date,emeter_current,emeter_voltage,emeter_power,emeter_total_concumption,emeter_today,emeter_month,device) VALUES ('{}','{}','{}','{}','{}','{}','{}','{}','{}')"
                  cur.execute(rqt.format(host,datetime.now(),devs["current"],devs["voltage"],devs["power"],devs["total"],dev.emeter_today,dev.emeter_this_month,device))
                  print(devs['current'])
                  print(devs['voltage'])
