@@ -150,45 +150,6 @@ def response():
 
 
 
-@app.route('/off', methods=['GET'])
-def stateOn():
-   plug = SmartPlug('192.168.1.3')
-   asyncio.run(plug.update())
-   if (plug.is_on):
-     asyncio.run(plug.turn_off())
-     
-   return request.method
-   
-
-@app.route('/on', methods=['GET'])
-def stateOff():
-   plug = SmartPlug('192.168.1.3')
-   asyncio.run(plug.update())
-   if (plug.is_off):
-     asyncio.run(plug.turn_on())
-     
-   return request.method
-   
-
-@app.route('/deviceOld', methods=['GET'])
-def scann():
-   dev = SmartDevice('192.168.1.3')
-   asyncio.run(dev.update())
-   devs = dev.emeter_realtime
-   return devs
-   
-   
-
-@app.route('/alias', methods=['GET'])
-def getAlias():
-   dev = SmartDevice('192.168.1.3')
-   asyncio.run(dev.update())
-   alias = dev.alias
-   
-   return alias
-
-
-
 @app.route('/device/add', methods=['GET'])
 def deviceAdd():
     ''' Ajoute un équipement à partir de son adresse IP :
